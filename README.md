@@ -15,14 +15,19 @@ Prometheus annotation에 의존하지 않는다. 알람이 오면 그 시점에 
         │  contact point: webhook
         ▼
 [Monitoring (Go) - 알람 오케스트레이터]
-   ├─ webhook/    Grafana webhook 수신 + Slack interactivity 수신(서명검증)
-   ├─ enricher/
-   │   ├─ kubernetes.go  client-go → pod image tag, startTime, cluster
-   │   ├─ argocd.go      Application API → repo URL, synced revision(SHA), (rollback 트리거: 플래그)
-   │   ├─ github.go      synced SHA → /commits/{sha} → 커미터 이름/이메일
-   │   └─ slack.go       이메일 → users.lookupByEmail → @멘션 user ID
-   ├─ grafana/    패널/로그 링크, alert rule, Silences API(silence 모달)
-   └─ notifier/   메인 스레드 + 스레드 댓글(Block Kit) Slack 발송
+   pkg/        (재사용 가능 - 다른 모듈에서 import 가능)
+   ├─ kube       K8s REST → pod image tag, startTime
+   ├─ argocd     Application API → repo URL, synced revision(SHA) + Sync(rollback)
+   ├─ github     synced SHA → /commits/{sha} → 커미터 이름/이메일
+   ├─ slackapi   lookupByEmail / chat.postMessage / views.open
+   ├─ grafana    Silences API (silence 모달 제출)
+   ├─ httpx      공유 JSON/HTTP 헬퍼
+   └─ model      공유 타입 (Alert, EnrichedAlert)
+   internal/   (앱 전용 - 오케스트레이션 글루)
+   ├─ webhook    Grafana webhook 파싱 + Slack 서명검증
+   ├─ enricher   소스 조립 + graceful degrade
+   ├─ notifier   메인/댓글/액션 Block Kit + 발송
+   └─ config     중앙 설정 로더
         │
         ▼
 Slack
@@ -55,3 +60,25 @@ go run ./cmd/server   # :8080, curl localhost:8080/healthz -> ok
 
 설정은 전부 [.env.example](.env.example) 한 파일에서 관리한다(중앙 설정).
 컨테이너/배포는 [deploy/](deploy/README.md), 마일스톤은 [ROADMAP.md](ROADMAP.md) 참조.
+
+## 재사용 (다른 프로젝트에서 import)
+
+`pkg/` 아래 클라이언트는 의존성 0(stdlib만)이라 어느 환경에서도 그대로 가져다 쓸 수 있다.
+
+```go
+import (
+    "github.com/kdh8733/monitoring/pkg/argocd"
+    "github.com/kdh8733/monitoring/pkg/grafana"
+)
+
+argo := argocd.New("https://argocd.example.com", token)
+info, _ := argo.AppInfo(ctx, "checkout-api")   // repo URL, synced revision, prev revision
+
+g := grafana.New("https://grafana.example.com", token)
+id, _ := g.CreateSilence(ctx, matchers, time.Hour, "me", "deploy issue")
+```
+
+각 클라이언트는 `New(baseURL, token)` 한 가지 패턴이고, enricher가 의존하는 부분은
+인터페이스(`KubeSource`/`ArgoSource`/`GitHubSource`/`SlackIdentity`)로 추상화돼 있어
+다른 구현(공식 SDK 기반 등)으로 갈아끼우기 쉽다. `internal/`은 이 앱 전용 글루라
+import 대상이 아니다.

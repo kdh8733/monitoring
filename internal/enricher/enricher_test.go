@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kdh8733/monitoring/internal/model"
+	"github.com/kdh8733/monitoring/pkg/model"
 )
 
 type fakeKube struct {

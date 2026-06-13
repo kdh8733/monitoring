@@ -10,7 +10,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/kdh8733/monitoring/internal/httpx"
+	"github.com/kdh8733/monitoring/pkg/httpx"
 )
 
 type Client struct {

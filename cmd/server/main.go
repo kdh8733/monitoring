@@ -21,16 +21,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kdh8733/monitoring/internal/argocd"
 	"github.com/kdh8733/monitoring/internal/config"
 	"github.com/kdh8733/monitoring/internal/enricher"
-	"github.com/kdh8733/monitoring/internal/github"
-	"github.com/kdh8733/monitoring/internal/grafana"
-	"github.com/kdh8733/monitoring/internal/kube"
-	"github.com/kdh8733/monitoring/internal/model"
 	"github.com/kdh8733/monitoring/internal/notifier"
-	"github.com/kdh8733/monitoring/internal/slackapi"
 	"github.com/kdh8733/monitoring/internal/webhook"
+	"github.com/kdh8733/monitoring/pkg/argocd"
+	"github.com/kdh8733/monitoring/pkg/github"
+	"github.com/kdh8733/monitoring/pkg/grafana"
+	"github.com/kdh8733/monitoring/pkg/kube"
+	"github.com/kdh8733/monitoring/pkg/model"
+	"github.com/kdh8733/monitoring/pkg/slackapi"
 )
 
 type app struct {

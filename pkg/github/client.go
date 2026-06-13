@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kdh8733/monitoring/internal/httpx"
-	"github.com/kdh8733/monitoring/internal/model"
+	"github.com/kdh8733/monitoring/pkg/httpx"
+	"github.com/kdh8733/monitoring/pkg/model"
 )
 
 type Client struct {

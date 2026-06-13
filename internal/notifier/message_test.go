@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kdh8733/monitoring/internal/model"
+	"github.com/kdh8733/monitoring/pkg/model"
 )
 
 // dump serializes blocks without HTML-escaping so assertions can match the

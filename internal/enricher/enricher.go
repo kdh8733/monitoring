@@ -3,8 +3,8 @@ package enricher
 import (
 	"context"
 
-	"github.com/kdh8733/monitoring/internal/github"
-	"github.com/kdh8733/monitoring/internal/model"
+	"github.com/kdh8733/monitoring/pkg/github"
+	"github.com/kdh8733/monitoring/pkg/model"
 )
 
 // Source interfaces decouple the enricher from concrete clients so it can be

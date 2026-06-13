@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/kdh8733/monitoring/internal/model"
+	"github.com/kdh8733/monitoring/pkg/model"
 )
 
 // grafanaPayload is the subset of a Grafana Alerting contact-point webhook

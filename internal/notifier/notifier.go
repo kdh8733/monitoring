@@ -3,7 +3,7 @@ package notifier
 import (
 	"context"
 
-	"github.com/kdh8733/monitoring/internal/model"
+	"github.com/kdh8733/monitoring/pkg/model"
 )
 
 // Poster is the slice of the Slack client the notifier needs (interface for

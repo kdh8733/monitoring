@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/kdh8733/monitoring/internal/httpx"
+	"github.com/kdh8733/monitoring/pkg/httpx"
 )
 
 // Client talks to the Grafana-managed Alertmanager Silences API using
