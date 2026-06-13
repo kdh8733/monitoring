@@ -1,0 +1,73 @@
+name: Gemini PR Review
+
+# 공식 액션 google-github-actions/run-gemini-cli@v0 를 사용한 자동 코드리뷰.
+# 필요한 시크릿: GEMINI_API_KEY (Google AI Studio 무료 발급)
+#   Settings > Secrets and variables > Actions > New repository secret
+# 트리거: PR 생성/업데이트 시 자동, 또는 PR 코멘트에 "@gemini-cli /review".
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  issue_comment:
+    types: [created]
+
+concurrency:
+  group: '${{ github.workflow }}-${{ github.event.pull_request.number || github.event.issue.number }}'
+  cancel-in-progress: true
+
+jobs:
+  review:
+    # PR 이벤트는 항상, 코멘트 이벤트는 PR에서 "@gemini-cli /review" 멘션일 때만.
+    if: >-
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.pull_request != null &&
+       contains(github.event.comment.body, '@gemini-cli /review'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Run Gemini pull request review
+        uses: google-github-actions/run-gemini-cli@v0
+        env:
+          GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}'
+          GEMINI_API_KEY: '${{ secrets.GEMINI_API_KEY }}'
+        with:
+          gemini_api_key: '${{ secrets.GEMINI_API_KEY }}'
+          # 모델 변경은 repo variable GEMINI_MODEL로 (기본은 액션 기본값).
+          gemini_model: '${{ vars.GEMINI_MODEL }}'
+          github_pr_number: '${{ github.event.pull_request.number || github.event.issue.number }}'
+          # code-review extension이 인라인 리뷰 코멘트를 게시한다.
+          extensions: |
+            [
+              "https://github.com/gemini-cli-extensions/code-review"
+            ]
+          # github MCP 서버로 PR 읽기/리뷰 코멘트 작성 권한을 준다.
+          settings: |-
+            {
+              "mcpServers": {
+                "github": {
+                  "command": "docker",
+                  "args": [
+                    "run", "-i", "--rm",
+                    "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
+                    "ghcr.io/github/github-mcp-server:v0.27.0"
+                  ],
+                  "includeTools": [
+                    "add_comment_to_pending_review",
+                    "pull_request_read",
+                    "pull_request_review_write"
+                  ],
+                  "env": {
+                    "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
+                  }
+                }
+              }
+            }
+          prompt: '/pr-code-review'
