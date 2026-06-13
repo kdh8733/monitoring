@@ -1,0 +1,6 @@
+/server
+/bin/
+.env
+*.env.local
+kubeconfig
+*.kubeconfig
