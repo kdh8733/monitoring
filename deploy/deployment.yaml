@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: monitoring-orchestrator
+  namespace: monitoring
+  labels:
+    app: monitoring-orchestrator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: monitoring-orchestrator
+  template:
+    metadata:
+      labels:
+        app: monitoring-orchestrator
+    spec:
+      containers:
+        - name: server
+          image: REPLACE_ME/monitoring:latest
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            # 중앙 설정 - 모든 토큰/도메인은 이 Secret 한 곳에서 관리.
+            - secretRef:
+                name: monitoring-config
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: monitoring-orchestrator
+  namespace: monitoring
+spec:
+  selector:
+    app: monitoring-orchestrator
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

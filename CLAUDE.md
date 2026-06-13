@@ -16,7 +16,10 @@
 - 기능/버그는 글로벌 TDD 원칙대로 **테스트 먼저**. 외부(K8s/Grafana/GitHub/Slack/ArgoCD)는
   인터페이스로 추상화하고 fake로 단위테스트. 네트워크 호출을 테스트에 넣지 않는다.
 - 커밋 전 `gofmt`/`go vet` 통과. (golangci-lint 도입 시 CI에서 강제)
-- **현재 머신에 Go 미설치**. 빌드/테스트 명령 실행 전 설치 여부 확인.
+- Go는 `/usr/local/go`(go1.26)에 설치됨. 외부 의존성 0(stdlib만) - `go test ./...`가
+  네트워크 없이 돈다. 새 의존성 추가는 이 원칙을 깨는지 먼저 따져본다.
+- 모든 외부 연동은 `{BaseURL, Token}` 패턴 + REST(net/http). 무거운 SDK(client-go/slack-go)
+  대신 얇은 클라이언트 + 인터페이스 + fake 테스트.
 
 ## 시크릿
 

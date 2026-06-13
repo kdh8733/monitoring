@@ -47,9 +47,11 @@ Slack
 ## 빠른 시작
 
 ```bash
-go version            # 1.23+ 필요 (현재 머신 미설치 - 설치 필요)
-cp .env.example .env  # 값 채우기
-go run ./cmd/server   # :8080, GET /healthz 로 확인
+go version            # 1.23+ (개발 머신에 go1.26 설치됨)
+go test ./...         # 전 패키지 단위테스트
+cp .env.example .env  # 중앙 설정 파일 - 값만 채우면 됨 (공란이어도 기동)
+go run ./cmd/server   # :8080, curl localhost:8080/healthz -> ok
 ```
 
-마일스톤은 [ROADMAP.md](ROADMAP.md) 참조.
+설정은 전부 [.env.example](.env.example) 한 파일에서 관리한다(중앙 설정).
+컨테이너/배포는 [deploy/](deploy/README.md), 마일스톤은 [ROADMAP.md](ROADMAP.md) 참조.

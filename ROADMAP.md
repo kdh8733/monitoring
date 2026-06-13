@@ -20,32 +20,41 @@
 각 단계는 외부(K8s/Grafana/GitHub/Slack/ArgoCD)를 인터페이스로 추상화하고 fake로
 단위검증한다. 네트워크 호출을 단위테스트에 넣지 않는다.
 
-### 기반
-- [ ] **M0 toolchain + 스켈레톤 기동** - 검증: Go 설치 후 `go vet ./...` clean + `go run ./cmd/server` & `curl -s localhost:8080/healthz` → `ok`. (차단: Go 미설치)
-- [ ] **M1 config 로더** - 검증: env → `Config` 단위테스트(필수값 누락 시 error, 플래그 파싱). (의존: M0)
-- [ ] **M2 webhook 파싱/정규화** - 검증: 실제 Grafana Alerting webhook JSON 샘플 → `Alert{cluster,namespace,app,ruleUID,ruleName,panelURL}` 추출 table test. (의존: M0)
+전 마일스톤 구현 완료. 코드/단위검증은 완료(`go test ./...` green), live 검증(실
+자격증명/도구 필요)은 아래 "남은 live 검증"에 분리. 상세는 ## 완료 기록 참조.
 
-### enricher (소스별 독립 - M3~M6 병렬 가능, 모두 의존: M1)
-- [ ] **M3 k8s enricher** - 검증: fake clientset에 pod 주입 → image tag + `startTime` + cluster 라벨 반환 단위테스트.
-- [ ] **M4 argocd enricher** - 검증: `httptest` fake ArgoCD Application API → app명 → repo URL + synced revision(SHA) 반환.
-- [ ] **M5 github enricher** - 검증: `httptest` fake GitHub `/commits/{sha}` → 커미터 name/email 반환.
-- [ ] **M6 slack identity** - 검증: fake Slack `users.lookupByEmail` → email→userID; 미존재 email → fallback 마커(graceful) 반환.
-- [ ] **M7 enrichment 파이프라인** - 검증: M3~M6 fake 전부 묶은 통합테스트 → `Alert`에 cluster/app/repo/deployer 채워짐. (의존: M2,M3,M4,M5,M6) → 완료기준 4
+### 기반
+- [x] **M0 toolchain + 스켈레톤 기동**
+- [x] **M1 config 로더** (+ 중앙 설정 파일 `.env.example`)
+- [x] **M2 webhook 파싱/정규화**
+
+### enricher (소스별 독립)
+- [x] **M3 k8s enricher**
+- [x] **M4 argocd enricher**
+- [x] **M5 github enricher**
+- [x] **M6 slack identity**
+- [x] **M7 enrichment 파이프라인** → 완료기준 4
 
 ### notifier
-- [ ] **M8 메시지 빌더(Block Kit)** - 검증: enriched `Alert` → 메인 블록(cluster/app/repo/요약) + 댓글 블록(패널·로그 링크·rule·@멘션) golden test(필드 assert). 순수 포맷, 네트워크 없음. → 완료기준 1,3 토대
-- [ ] **M9 Slack 발송** - 검증: fake Slack가 메인 `chat.postMessage` → 동일 `thread_ts`로 댓글 수신; 또는 테스트 채널 수동발송 시 필드 포함 메시지 게시. (의존: M7,M8) → 완료기준 1,3
+- [x] **M8 메시지 빌더(Block Kit)** → 완료기준 1,3
+- [x] **M9 Slack 발송** (unit) → 완료기준 1,3 / live는 아래
 
 ### silence 상호작용
-- [ ] **M10 interactivity 엔드포인트 + 서명검증** - 검증: 서명된 payload POST → 200, 변조 서명 → 401 단위테스트. (의존: M1)
-- [ ] **M11 silence 모달 → Grafana Silences API** - 검증: 모달 제출 핸들러 → fake Grafana Silences에 POST 후 GET으로 silence 존재 확인. (의존: M10) → 완료기준 2
+- [x] **M10 interactivity 엔드포인트 + 서명검증**
+- [x] **M11 silence 모달 → Grafana Silences API** (unit) → 완료기준 2 / live는 아래
 
 ### ArgoCD 액션 (플래그)
-- [ ] **M12 rollback 버튼 + sync 트리거** - 검증: 플래그 off → 빌드된 블록에 버튼 없음(assert); on → 클릭 핸들러가 fake ArgoCD에 직전 revision sync 호출. (의존: M4,M8,M10) → 완료기준 5
+- [x] **M12 rollback 버튼 + sync 트리거** → 완료기준 5
 
 ### 배포
-- [ ] **M13 컨테이너화** - 검증: distroless `Dockerfile` `docker build` 성공 + `docker run` 후 `curl /healthz` 200. (의존: M0)
-- [ ] **M14 k8s 매니페스트 + 연동 문서** - 검증: `kubectl apply --dry-run=client` 통과 + Grafana contact point/Slack app 연동 체크리스트 문서화. (의존: M9,M11)
+- [x] **M13 컨테이너화** (Dockerfile 작성) - `docker build`는 아래 live 검증
+- [x] **M14 k8s 매니페스트 + 연동 문서** - `kubectl --dry-run`은 아래 live 검증
+
+## 남은 live 검증 (자격증명/도구 확보 후)
+- **M9/M11 실발송·실silence**: 실 Slack App + Grafana 토큰으로 테스트 채널 발송 및
+  Silences API 생성 확인. (단위테스트로 로직은 검증됨)
+- **M13 `docker build`**: 현재 머신 docker 미연동(WSL). 이미지 빌드/런 확인 필요.
+- **M14 `kubectl apply --dry-run=client`**: 대상 클러스터에서 매니페스트 검증.
 
 ## 후순위 / 보류
 - **명시적 GitHub↔Slack 매핑 테이블** - 보류: lookupByEmail + fallback으로 시작. 이메일 불일치가 실제로 빈번해질 때 도입(추측성 선구현 금지).
@@ -53,10 +62,10 @@
 - **멀티클러스터 K8s context 선택 로직** - 보류: 단일 kubeconfig로 시작, 실제 멀티 pod 조회 필요 시 M3 확장.
 - **rollback 외 추가 액션(재시작 등)** - 보류: 요청 범위 밖.
 
-## 외부 차단 요소 (작업 전 확보 필요)
-- **Go 설치** - M0 차단.
-- **자격증명**: Grafana/ArgoCD/GitHub/Slack 토큰 + 테스트 Slack 채널 + 도달 가능한 중앙 Grafana - M9/M11/M13~14의 live 검증 차단(M3~M8 fake 단위테스트는 불요).
-- **Slack App 생성**: interactivity Request URL은 공개 인그레스 필요 - M10/M11 live 검증 차단.
-
 ## 완료 기록
-- (아직 없음) M0 스켈레톤은 커밋(`52fd7fd`)됐으나 Go 미설치로 `go run` 검증 미완 → M0 open 유지.
+- [x] **M0~M14 구현** (2026-06-13) - 검증: `go build ./...`/`go vet ./...` clean,
+  `go test ./...` 전 패키지 green, blank config로 서버 기동 후 `GET /healthz`→`ok`,
+  `POST /webhook/grafana`(빈 alerts)→200, 서명 없는 `/slack/interactivity`→401 스모크 확인.
+- 설계: 외부 의존성 0(stdlib만), 모든 연동 `{BaseURL,Token}` REST + 인터페이스+fake.
+- Go go1.26 `/usr/local/go` 설치(개발 머신).
+- 완료기준 1~5는 단위/스모크로 검증됨. 실 자격증명 기반 E2E는 "남은 live 검증" 참조.
