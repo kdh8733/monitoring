@@ -67,9 +67,25 @@ func (e *Enricher) Enrich(ctx context.Context, a model.Alert) model.EnrichedAler
 		}
 	}
 
-	if e.GitHub != nil && out.RepoURL != "" && out.Revision != "" {
-		if ci, err := e.GitHub.Commit(ctx, out.RepoURL, out.Revision); err != nil {
-			e.logf("enrich github %s@%s: %v", out.RepoURL, out.Revision, err)
+	// Committer attribution: prefer the ArgoCD synced revision (set above);
+	// fall back to the commit hash embedded in the running pod image tag so
+	// attribution still works in environments without ArgoCD/GitOps.
+	repoRef, revision := out.RepoURL, out.Revision
+	if (repoRef == "" || revision == "") && out.PodImage != "" {
+		if repo, sha, ok := github.ParseImage(out.PodImage); ok {
+			repoRef, revision = repo, sha
+			if out.RepoName == "" {
+				out.RepoName = repo
+			}
+			if out.Revision == "" {
+				out.Revision = sha
+			}
+		}
+	}
+
+	if e.GitHub != nil && repoRef != "" && revision != "" {
+		if ci, err := e.GitHub.Commit(ctx, repoRef, revision); err != nil {
+			e.logf("enrich github %s@%s: %v", repoRef, revision, err)
 		} else {
 			out.CommitterName, out.CommitterEmail = ci.Name, ci.Email
 		}

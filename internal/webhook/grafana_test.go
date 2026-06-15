@@ -56,6 +56,62 @@ func TestParseGrafanaWebhook(t *testing.T) {
 	}
 }
 
+// AlertManager (v4) webhook: cluster comes from commonLabels (external_labels),
+// and there is no panelURL/silenceURL. The same parser must handle it.
+const sampleAlertManagerPayload = `{
+  "version": "4",
+  "status": "firing",
+  "commonLabels": { "cluster": "prod-seoul" },
+  "alerts": [
+    {
+      "status": "firing",
+      "labels": {
+        "alertname": "HighErrorRate",
+        "namespace": "payments",
+        "app": "checkout-api"
+      },
+      "annotations": { "description": "5xx ratio high" },
+      "startsAt": "2026-06-13T10:00:00Z",
+      "generatorURL": "https://prometheus.local/graph?g0.expr=...",
+      "fingerprint": "fp-am-001"
+    }
+  ]
+}`
+
+func TestParseWebhook_AlertManager(t *testing.T) {
+	alerts, err := ParseWebhook([]byte(sampleAlertManagerPayload))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(alerts) != 1 {
+		t.Fatalf("want 1 alert, got %d", len(alerts))
+	}
+	a := alerts[0]
+	if a.Cluster != "prod-seoul" {
+		t.Errorf("Cluster=%q, want prod-seoul (from commonLabels)", a.Cluster)
+	}
+	if a.App != "checkout-api" {
+		t.Errorf("App=%q, want checkout-api", a.App)
+	}
+	if a.Summary != "5xx ratio high" {
+		t.Errorf("Summary=%q, want description fallback", a.Summary)
+	}
+	if a.GeneratorURL == "" || a.Fingerprint != "fp-am-001" {
+		t.Errorf("generatorURL/fingerprint not parsed: %+v", a)
+	}
+}
+
+func TestParseWebhook_ImageURL(t *testing.T) {
+	body := `{"alerts":[{"status":"firing","labels":{"alertname":"X"},"imageURL":"https://grafana/render/abc.png"}]}`
+	alerts, err := ParseWebhook([]byte(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if alerts[0].ImageURL != "https://grafana/render/abc.png" {
+		t.Errorf("ImageURL=%q", alerts[0].ImageURL)
+	}
+}
+
 func TestParseGrafanaWebhook_DashboardURLFallback(t *testing.T) {
 	body := `{"alerts":[{"status":"firing","labels":{"alertname":"X"},"dashboardURL":"https://g/d/abc"}]}`
 	alerts, err := ParseGrafanaWebhook([]byte(body))

@@ -23,6 +23,9 @@ type Config struct {
 	// Grafana (central, multi-cluster via labels)
 	GrafanaBaseURL  string
 	GrafanaAPIToken string
+	// Attach the Grafana-rendered panel screenshot (webhook imageURL) to the
+	// Slack thread instead of only linking it. Requires Grafana image-renderer.
+	GrafanaImageEnabled bool
 
 	// Kubernetes (central API access; same {url, token} pattern)
 	KubeAPIURL             string
@@ -85,8 +88,9 @@ func Load(path string) (*Config, error) {
 		SlackAlertChannel:  get("SLACK_ALERT_CHANNEL"),
 		SlackBaseURL:       orDefault(get("SLACK_BASE_URL"), "https://slack.com/api"),
 
-		GrafanaBaseURL:  get("GRAFANA_BASE_URL"),
-		GrafanaAPIToken: get("GRAFANA_API_TOKEN"),
+		GrafanaBaseURL:      get("GRAFANA_BASE_URL"),
+		GrafanaAPIToken:     get("GRAFANA_API_TOKEN"),
+		GrafanaImageEnabled: asBool(get("GRAFANA_IMAGE_ENABLED")),
 
 		KubeAPIURL:             get("KUBE_API_URL"),
 		KubeToken:              get("KUBE_TOKEN"),

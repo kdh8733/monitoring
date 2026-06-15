@@ -62,6 +62,18 @@
 - **멀티클러스터 K8s context 선택 로직** - 보류: 단일 kubeconfig로 시작, 실제 멀티 pod 조회 필요 시 M3 확장.
 - **rollback 외 추가 액션(재시작 등)** - 보류: 요청 범위 밖.
 
+## 원본 설계 흡수 (2026-06-14, echo-system 강점 유지 + 원본 장점 흡수)
+회사 원본 설계(`~/workspace/alert연동/golang-알럿체계.md`)와 비교 후, 포터빌리티를 해치지
+않는 선에서 원본이 더 나은 3가지를 흡수. 자체 DB는 포터빌리티 훼손으로 배제.
+- [x] **커미터 image-tag 폴백** - ArgoCD 없을 때 pod image tag의 commit hash로 커미터 귀속.
+  `github.ParseImage` + enricher 폴백. 검증: `TestParseImage`, `TestEnrich_ImageTagFallbackWithoutArgo`,
+  `TestEnrich_ArgoTakesPrecedenceOverImage`.
+- [x] **AlertManager webhook 호환** - Grafana/AlertManager 페이로드를 단일 `ParseWebhook`이
+  처리(commonLabels 폴백). `/webhook/alertmanager` 라우트 추가. 검증: `TestParseWebhook_AlertManager`.
+- [x] **Grafana 스크린샷 첨부(토글)** - `GRAFANA_IMAGE_ENABLED` on이면 webhook `imageURL`을
+  Slack 이미지 블록으로 첨부, off면 링크 폴백(image-renderer 의존성 분리). 검증: `TestBuildContextBlocks_ImageToggle`.
+- 검증 전체: `go build`/`go vet` clean, `go test -race ./...` green, `gofmt -l` clean.
+
 ## 완료 기록
 - [x] **M0~M14 구현** (2026-06-13) - 검증: `go build ./...`/`go vet ./...` clean,
   `go test ./...` 전 패키지 green, blank config로 서버 기동 후 `GET /healthz`→`ok`,

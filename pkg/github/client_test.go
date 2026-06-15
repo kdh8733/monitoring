@@ -30,6 +30,31 @@ func TestParseRepo(t *testing.T) {
 	}
 }
 
+func TestParseImage(t *testing.T) {
+	type want struct {
+		repo, sha string
+		ok        bool
+	}
+	cases := map[string]want{
+		"ghcr.io/acme/checkout:main-1a2b3c4":        {"acme/checkout", "1a2b3c4", true},
+		"registry.io/acme/checkout:v1.4.0-g9f8e7d6": {"acme/checkout", "9f8e7d6", true},
+		"reg.io:5000/acme/checkout:0badc0ffee":      {"acme/checkout", "0badc0ffee", true},
+		"acme/checkout:1a2b3c4d5e6f":                {"acme/checkout", "1a2b3c4d5e6f", true},
+		"ghcr.io/acme/checkout@sha256:deadbeef":     {"", "", false}, // digest pin, no tag
+		"ghcr.io/acme/checkout:latest":              {"", "", false}, // no sha in tag
+		"ghcr.io/acme/checkout:v1.4.0":              {"", "", false}, // semver only
+		"checkout:1a2b3c4":                          {"", "", false}, // no owner
+		"":                                          {"", "", false},
+	}
+	for in, w := range cases {
+		repo, sha, ok := ParseImage(in)
+		if ok != w.ok || repo != w.repo || sha != w.sha {
+			t.Errorf("ParseImage(%q) = (%q,%q,%v), want (%q,%q,%v)",
+				in, repo, sha, ok, w.repo, w.sha, w.ok)
+		}
+	}
+}
+
 func TestCommit(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !strings.Contains(r.URL.Path, "/repos/acme/checkout/commits/newsha") {

@@ -17,6 +17,7 @@ type Notifier struct {
 	Slack           Poster
 	Channel         string
 	RollbackEnabled bool
+	ImageEnabled    bool // attach Grafana screenshot (imageURL) inline
 }
 
 // Notify posts the main message, then context and action replies in its
@@ -26,7 +27,7 @@ func (n *Notifier) Notify(ctx context.Context, a model.EnrichedAlert) (string, e
 	if err != nil {
 		return "", err
 	}
-	if _, err := n.Slack.PostMessage(ctx, n.Channel, ts, BuildContextBlocks(a), "context"); err != nil {
+	if _, err := n.Slack.PostMessage(ctx, n.Channel, ts, BuildContextBlocks(a, n.ImageEnabled), "context"); err != nil {
 		return ts, err
 	}
 	if _, err := n.Slack.PostMessage(ctx, n.Channel, ts, BuildActionBlocks(a, n.RollbackEnabled), "actions"); err != nil {

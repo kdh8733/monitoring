@@ -51,8 +51,10 @@ func BuildMainBlocks(a model.EnrichedAlert) []block {
 
 // BuildContextBlocks renders the thread reply with panel link, log-source
 // link, and alert rule (completion criterion 3), plus the deploy owner
-// mention (completion criterion 4).
-func BuildContextBlocks(a model.EnrichedAlert) []block {
+// mention (completion criterion 4). When imageEnabled and the alert carries a
+// Grafana-rendered screenshot (imageURL), it is attached inline as an image
+// block; otherwise the panel link alone is used (graceful fallback).
+func BuildContextBlocks(a model.EnrichedAlert, imageEnabled bool) []block {
 	var blocks []block
 
 	links := joinNonEmpty("  |  ",
@@ -64,6 +66,10 @@ func BuildContextBlocks(a model.EnrichedAlert) []block {
 		links = "*Rule:* " + orDash(a.RuleName)
 	}
 	blocks = append(blocks, section(links))
+
+	if imageEnabled && a.ImageURL != "" {
+		blocks = append(blocks, imageBlock(a.ImageURL, orDash(a.RuleName)))
+	}
 
 	if owner := ownerMention(a); owner != "" {
 		blocks = append(blocks, section(owner))
@@ -113,6 +119,12 @@ func section(text string) block {
 
 func mrkdwn(text string) block {
 	return block{"type": "mrkdwn", "text": text}
+}
+
+// imageBlock renders a Slack image block. Slack fetches image_url itself, so
+// the URL must be reachable by Slack (a public Grafana screenshot URL).
+func imageBlock(url, alt string) block {
+	return block{"type": "image", "image_url": url, "alt_text": truncate(alt, 2000)}
 }
 
 func button(text, actionID, value, style string) block {

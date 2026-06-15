@@ -18,6 +18,7 @@ type Alert struct {
 	PanelURL     string // dashboard/panel deep link
 	GeneratorURL string // grafana rule/explore link
 	SilenceURL   string // grafana-provided silence link (fallback)
+	ImageURL     string // grafana-rendered panel screenshot (needs image-renderer)
 	StartsAt     time.Time
 }
 

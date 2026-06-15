@@ -11,8 +11,10 @@ Prometheus annotation에 의존하지 않는다. 알람이 오면 그 시점에 
 중앙 Prometheus(멀티클러스터, cluster 라벨)
         │  datasource query
         ▼
-중앙 Grafana Alerting  ── rule 평가 → firing
-        │  contact point: webhook
+중앙 Grafana Alerting  ── rule 평가 → firing      (또는 Prometheus AlertManager)
+        │  contact point: webhook                    │  webhook
+        ▼                                            ▼
+        └──────────────  /webhook/{grafana,alertmanager}  ──────────────┘
         ▼
 [Monitoring (Go) - 알람 오케스트레이터]
    pkg/        (재사용 가능 - 다른 모듈에서 import 가능)
@@ -24,9 +26,9 @@ Prometheus annotation에 의존하지 않는다. 알람이 오면 그 시점에 
    ├─ httpx      공유 JSON/HTTP 헬퍼
    └─ model      공유 타입 (Alert, EnrichedAlert)
    internal/   (앱 전용 - 오케스트레이션 글루)
-   ├─ webhook    Grafana webhook 파싱 + Slack 서명검증
-   ├─ enricher   소스 조립 + graceful degrade
-   ├─ notifier   메인/댓글/액션 Block Kit + 발송
+   ├─ webhook    Grafana/AlertManager webhook 파싱 + Slack 서명검증
+   ├─ enricher   소스 조립 + graceful degrade (ArgoCD 없으면 image tag로 폴백)
+   ├─ notifier   메인/댓글/액션 Block Kit + 발송 (옵션: Grafana 스크린샷 첨부)
    └─ config     중앙 설정 로더
         │
         ▼
@@ -35,7 +37,8 @@ Slack
    스레드 댓글:
      1. Silence 버튼 → Block Kit 모달 → Grafana Silences API
      2. 패널 링크 + 로그 원천(Kibana 또는 Prometheus) + alert rule
-     3. 배포 책임자 @멘션 (ArgoCD synced revision의 커미터)
+        (옵션, 플래그) Grafana 렌더 스크린샷 인라인 첨부
+     3. 배포 책임자 @멘션 (ArgoCD synced revision의 커미터, 없으면 image tag의 커밋)
      4. (옵션, 플래그) ArgoCD rollback 버튼
 ```
 
@@ -47,6 +50,11 @@ Slack
   Grafana 1곳만 상대한다.
 - **배포 책임자 = ArgoCD synced revision의 커미터**. repo HEAD의 마지막 커밋이 아니라
   "실제 돌고 있는 버전을 배포한 사람"을 태그한다. (image tag 파싱보다 ArgoCD revision이 정확)
+  ArgoCD가 없는 환경에서는 **pod image tag에 박힌 commit hash로 폴백**해 동일하게 동작한다.
+- **알람 엔진 호환** = Grafana Alerting과 Prometheus AlertManager webhook을 같은 핸들러가
+  파싱한다(`/webhook/grafana`, `/webhook/alertmanager`). enrich 로직은 엔진과 무관.
+- **Grafana 스크린샷 첨부** 는 `GRAFANA_IMAGE_ENABLED` 플래그로 on/off. on이면 webhook의
+  `imageURL`(Grafana image-renderer 필요)을 Slack 이미지 블록으로 첨부, off면 링크만.
 - **ArgoCD 액션(rollback)** 은 `ARGOCD_ROLLBACK_ENABLED` 플래그로 on/off.
 
 ## 빠른 시작

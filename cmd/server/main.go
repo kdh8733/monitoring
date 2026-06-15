@@ -4,6 +4,7 @@
 //
 //	GET  /healthz             - liveness.
 //	POST /webhook/grafana     - Grafana Alerting contact point: enrich + post to Slack.
+//	POST /webhook/alertmanager - Prometheus AlertManager webhook (same handler).
 //	POST /slack/interactivity - Slack Block Kit actions: silence modal, rollback.
 //
 // All endpoints/credentials come from the central config file (default .env);
@@ -73,6 +74,7 @@ func main() {
 			Slack:           slack,
 			Channel:         cfg.SlackAlertChannel,
 			RollbackEnabled: cfg.ArgoCDRollbackEnabled,
+			ImageEnabled:    cfg.GrafanaImageEnabled,
 		},
 	}
 
@@ -81,7 +83,9 @@ func main() {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	})
-	mux.HandleFunc("POST /webhook/grafana", a.handleGrafanaWebhook)
+	// Both engines post a compatible payload; one handler serves both routes.
+	mux.HandleFunc("POST /webhook/grafana", a.handleWebhook)
+	mux.HandleFunc("POST /webhook/alertmanager", a.handleWebhook)
 	mux.HandleFunc("POST /slack/interactivity", a.handleInteractivity)
 
 	log.Printf("monitoring orchestrator listening on %s", cfg.ListenAddr)
@@ -90,13 +94,13 @@ func main() {
 	}
 }
 
-func (a *app) handleGrafanaWebhook(w http.ResponseWriter, r *http.Request) {
+func (a *app) handleWebhook(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(io.LimitReader(r.Body, 2<<20))
 	if err != nil {
 		http.Error(w, "read body", http.StatusBadRequest)
 		return
 	}
-	alerts, err := webhook.ParseGrafanaWebhook(body)
+	alerts, err := webhook.ParseWebhook(body)
 	if err != nil {
 		http.Error(w, "parse", http.StatusBadRequest)
 		return

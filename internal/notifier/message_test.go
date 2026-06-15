@@ -46,7 +46,7 @@ func TestBuildMainBlocks_HasIdentity(t *testing.T) {
 }
 
 func TestBuildContextBlocks_LinksAndMention(t *testing.T) {
-	s := dump(t, BuildContextBlocks(enriched()))
+	s := dump(t, BuildContextBlocks(enriched(), false))
 	for _, want := range []string{"https://grafana/d/p", "https://kibana/x", "HighErrorRate", "<@U123>"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("context blocks missing %q in %s", want, s)
@@ -54,10 +54,33 @@ func TestBuildContextBlocks_LinksAndMention(t *testing.T) {
 	}
 }
 
+func TestBuildContextBlocks_ImageToggle(t *testing.T) {
+	a := enriched()
+	a.ImageURL = "https://grafana/render/p.png"
+
+	// off: no image block even when imageURL present.
+	off := dump(t, BuildContextBlocks(a, false))
+	if strings.Contains(off, "render/p.png") || strings.Contains(off, `"image"`) {
+		t.Errorf("image must be absent when toggle off, got %s", off)
+	}
+
+	// on: image block attached.
+	on := dump(t, BuildContextBlocks(a, true))
+	if !strings.Contains(on, "render/p.png") || !strings.Contains(on, `"type":"image"`) {
+		t.Errorf("image block expected when toggle on, got %s", on)
+	}
+
+	// on but no imageURL: gracefully falls back to link only.
+	noimg := dump(t, BuildContextBlocks(enriched(), true))
+	if strings.Contains(noimg, `"type":"image"`) {
+		t.Errorf("no image block when imageURL empty, got %s", noimg)
+	}
+}
+
 func TestOwnerMention_FallbackWhenNoSlackID(t *testing.T) {
 	a := enriched()
 	a.SlackUserID = ""
-	s := dump(t, BuildContextBlocks(a))
+	s := dump(t, BuildContextBlocks(a, false))
 	if !strings.Contains(s, "Kim") || !strings.Contains(s, "매칭 실패") {
 		t.Errorf("expected committer-name fallback, got %s", s)
 	}
